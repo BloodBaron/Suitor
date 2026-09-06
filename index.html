@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Suitor — Guided Court Flow</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#110a10;--bg2:#1a0d16;--panel:#21121c;--panel2:#2b1724;--line:#503044;
+  --ink:#f6eee9;--muted:#bda7b2;--rose:#c86d87;--rose2:#8b3e5c;--gold:#e2bf73;
+  --green:#87c995;--red:#e67c7c;--blue:#8fb7d8;--shadow:0 24px 70px rgba(0,0,0,.42)
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;background:
+ radial-gradient(circle at 50% -12%,#4a1f34 0,#24101d 30%,#120a10 67%,#0b070a 100%);}
+body{min-height:100vh}
+button,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:default;opacity:.35}
+.hidden{display:none!important}
+.shell{width:min(1180px,95vw);margin:18px auto 48px;padding-bottom:env(safe-area-inset-bottom)}
+header{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin-bottom:14px}
+.logo{font:900 clamp(32px,5vw,58px) Georgia,serif;letter-spacing:.14em;text-transform:uppercase;color:#fff7ef;text-shadow:0 0 30px rgba(220,110,145,.22)}
+.tagline{text-align:center;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.16em}
+.tagline strong{display:block;color:var(--gold);font:700 17px Georgia,serif;letter-spacing:.03em;text-transform:none;margin-top:3px}
+.connection{text-align:right;color:var(--muted);font-size:12px}
+.card{border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,rgba(38,20,32,.96),rgba(27,14,24,.96));box-shadow:var(--shadow);padding:22px;margin-bottom:14px}
+h2{font:700 23px Georgia,serif;margin:0 0 14px}h3{margin:0}
+p{color:var(--muted);line-height:1.5}.note{color:var(--muted);font-size:12px;line-height:1.45}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid.three{grid-template-columns:1fr 1fr 1fr}
+label{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}
+input{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#130a11;color:var(--ink);outline:none}
+input:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(226,191,115,.08)}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:13px}
+button{border:1px solid var(--line);border-radius:12px;background:#321a29;color:var(--ink);padding:11px 14px;font-weight:800;transition:.14s transform,.14s border-color,.14s background}
+button:hover:not(:disabled){transform:translateY(-1px);border-color:#84506e}
+button.primary{background:linear-gradient(#e6c77d,#b98b48);border-color:#9a743c;color:#20170d}
+button.rose{background:linear-gradient(#b85e7b,#7d3553);border-color:#9e536c;color:white}
+button.danger{background:#32171b;border-color:#743e45;color:#f0b4b4}
+button.ghost{background:transparent}
+.status{border:1px solid var(--line);border-radius:11px;background:#130a11;padding:10px 12px;color:var(--muted);font-size:13px}
+.status.good{color:var(--green)}.status.bad{color:var(--red)}
+.room-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;border:1px solid var(--line);border-radius:20px;padding:13px 17px;background:rgba(24,12,20,.92);margin-bottom:14px}
+.room-code{font:900 27px ui-monospace,Consolas,monospace;letter-spacing:.14em;color:var(--gold)}
+.pot{text-align:center;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.13em}.pot strong{display:block;color:var(--ink);font-size:30px;letter-spacing:0}
+.phase{text-align:right;color:#db9eb1;font-weight:850}.phase small{display:block;color:var(--muted);font-weight:500;margin-top:2px}
+.game-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:14px}
+.house{position:relative;overflow:hidden;text-align:center;min-height:315px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.house:before{content:"";position:absolute;inset:-50%;background:radial-gradient(circle,rgba(195,77,114,.12),transparent 44%);pointer-events:none}
+.eyebrow{text-transform:uppercase;letter-spacing:.16em;color:var(--muted);font-size:10px;font-weight:750}
+.house-title{font:700 29px Georgia,serif;margin:4px 0 2px}
+.house-dice{display:flex;justify-content:center;gap:20px;margin:22px 0 14px;position:relative;z-index:1}
+.d6{width:104px;height:104px;border-radius:19px;display:grid;place-items:center;background:linear-gradient(145deg,#fff6e5,#d8c39f);color:#23170f;font-size:72px;line-height:1;box-shadow:inset 0 -8px 0 rgba(45,22,12,.16),0 18px 35px rgba(0,0,0,.35);transition:.15s transform,.15s box-shadow}
+.d6.lock{transform:scale(1.11);box-shadow:inset 0 -8px 0 rgba(45,22,12,.16),0 0 0 4px rgba(226,191,115,.17),0 22px 45px rgba(0,0,0,.42)}
+.house-total{font:900 56px Georgia,serif;color:var(--gold);line-height:1;min-height:62px;position:relative;z-index:1}
+.house-banner{min-height:28px;font:800 20px Georgia,serif;color:#f2ccd7;margin-top:5px;position:relative;z-index:1}
+.house-banner.seven{font-size:28px;color:#ff9c9c;text-shadow:0 0 25px rgba(255,80,80,.35)}
+.house-banner.doubles{font-size:26px;color:#f0d594;text-shadow:0 0 25px rgba(226,191,115,.28)}
+.house-message{max-width:620px;color:var(--muted);font-size:13px;line-height:1.45;margin-top:7px;position:relative;z-index:1}
+.house-controls{margin-top:15px;position:relative;z-index:1}.ready-count{color:var(--muted);font-size:12px;margin-bottom:8px}
+.private{min-height:315px}.private h2{text-align:center;margin-top:3px}
+.waiting{text-align:center;color:var(--muted);padding:28px 14px;line-height:1.5}
+.net-big{text-align:center;font:900 34px Georgia,serif;color:var(--gold);margin:10px 0}.net-big.negative{color:#e48b8b}
+.court-panel{border-top:1px solid var(--line);padding-top:15px;margin-top:12px}
+.court-numbers{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin:11px 0}
+.court-num{padding:12px 4px;border-radius:12px;background:#25131f;position:relative}.court-num strong{font-size:21px;display:block}.court-num small{font-size:9px;color:var(--muted)}
+.court-num.selected{border-color:var(--gold);background:#3a251d;box-shadow:0 0 0 2px rgba(226,191,115,.08)}
+.court-summary{border:1px solid var(--line);border-radius:14px;background:#160c13;padding:13px;text-align:center;margin:12px 0}.court-summary strong{color:var(--gold)}
+.hit-note{border:1px solid #5f6b43;background:#182014;color:#bfe59d;border-radius:12px;padding:10px;text-align:center;margin:10px 0}.loss-note{border-color:#713d43;background:#241216;color:#efaaa9}
+.d12-stage{text-align:center;padding:8px 0}.d12{width:118px;height:118px;border-radius:28px;margin:16px auto;display:grid;place-items:center;background:radial-gradient(circle at 38% 28%,#fff9e9,#d9be87 55%,#a97a43 100%);color:#26180f;font:900 55px Georgia,serif;clip-path:polygon(50% 0,88% 16%,100% 55%,76% 92%,24% 92%,0 55%,12% 16%);filter:drop-shadow(0 18px 20px rgba(0,0,0,.35));transition:.2s transform,.2s filter}
+.d12.impact{transform:scale(1.22);filter:drop-shadow(0 0 24px rgba(226,191,115,.43)) drop-shadow(0 18px 20px rgba(0,0,0,.35))}
+.roll-result{text-align:center;font:800 21px Georgia,serif;color:#e8c8d3;min-height:27px}
+.outcome-guide{margin:13px auto 0;max-width:520px;border:1px solid var(--line);border-radius:13px;background:#160c13;padding:10px 12px;color:var(--muted);font-size:11px;line-height:1.45;text-align:center}.outcome-guide strong{color:var(--ink)}
+.step-guide{margin:12px 0;border:1px solid var(--line);border-radius:13px;background:#120b10;padding:11px 13px;color:var(--muted);font-size:11px;line-height:1.5}.step-guide strong{color:var(--ink)}.step-guide .step-title{color:var(--gold);font-size:9px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px}
+.settlement{margin:9px 0 2px;border:1px solid #685533;border-radius:12px;background:#241c12;padding:8px 10px;color:var(--gold);font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;text-align:center}.settlement.negative{border-color:#713e45;background:#261318;color:#f0a3a3}.settlement.zero{border-color:var(--line);background:#160d14;color:var(--muted)}
+.roll-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(10,5,9,.88);backdrop-filter:blur(7px);opacity:0;pointer-events:none;transition:opacity .15s ease}.roll-overlay.show{opacity:1;pointer-events:auto}.roll-overlay-inner{text-align:center}.roll-overlay-name{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.16em;font-weight:800;margin-bottom:8px}.roll-overlay .d12{width:150px;height:150px;font-size:68px;margin:18px auto}.roll-overlay-result{font:800 23px Georgia,serif;color:#e8c8d3;min-height:30px}
+.walk-box{text-align:center;border:1px solid #6e4e34;border-radius:16px;background:radial-gradient(circle,#332218,#1b1117 70%);padding:20px;margin-top:12px}.walk-box h3{font:800 25px Georgia,serif;color:var(--gold);margin-bottom:8px}
+.final-box{text-align:center;border:1px solid #876f37;border-radius:19px;background:radial-gradient(circle,#382a18,#1a1017 70%);padding:22px}.final-box .big{font:900 31px Georgia,serif;color:var(--gold)}
+.public{grid-column:1/-1}.public h2{font-size:19px}
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:9px;margin-top:12px}
+.player{border:1px solid var(--line);border-radius:16px;background:#170c14;padding:12px;display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;min-height:88px;transition:.2s opacity,.2s border-color,.2s transform}
+.player.me{border-color:#78516a}.player.out{opacity:.48}.player.winner{border-color:#8d773e;background:#241b13}.seat{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);font-weight:900}
+.player-name{font-weight:900}.player-meta{font-size:11px;color:var(--muted);margin-top:3px}.player-meta .court{color:#e0c37f}.player-meta .gain{color:#9fd39f}.player-meta .loss{color:#e89b9b}
+.player-right{text-align:right;min-width:66px}.net{font-weight:900;color:var(--gold)}.net.neg{color:#e58a8a}.mini-roll{font:900 28px Georgia,serif;min-height:32px;color:#f2dedf}.mini-result{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);max-width:100px}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.badge{border:1px solid var(--line);border-radius:999px;padding:3px 6px;font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.badge.ready{color:#a7d9a7;border-color:#48634c}.badge.host{color:var(--gold);border-color:#695936}.badge.decision{color:#d4a6df;border-color:#604768}
+.finished{border:1px solid #806c3b;border-radius:19px;background:radial-gradient(circle,#2e2417,#171016 70%);padding:22px;text-align:center;margin-top:14px}.finished .big{font:900 clamp(31px,5vw,52px) Georgia,serif;color:var(--gold)}.finished .sub{color:var(--muted);margin-top:7px}
+.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}.legend div{border:1px solid var(--line);border-radius:11px;padding:9px;font-size:10px;color:var(--muted);text-align:center}.legend strong{display:block;color:var(--ink);font-size:12px;margin-bottom:2px}
+.table-only .private,.table-only #normalControls,.table-only #configCard,.table-only #entryCard{display:none!important}.table-only .game-grid{grid-template-columns:1fr}.table-only .house{min-height:360px}.table-only .public{font-size:16px}.table-only .player{min-height:105px}
+.flash-seven{animation:sevenFlash .85s ease}@keyframes sevenFlash{0%,100%{box-shadow:var(--shadow)}35%{box-shadow:0 0 0 3px rgba(255,93,93,.15),0 0 70px rgba(255,54,54,.28)}}
+.flash-double{animation:doubleFlash .9s ease}@keyframes doubleFlash{0%,100%{box-shadow:var(--shadow)}35%{box-shadow:0 0 0 3px rgba(226,191,115,.13),0 0 70px rgba(226,191,115,.22)}}
+@media(max-width:780px){
+  .shell{width:min(96vw,720px);margin-top:10px}.card{padding:16px;border-radius:18px}header{grid-template-columns:1fr auto}.tagline{display:none}.logo{font-size:34px}.grid,.grid.three,.game-grid{grid-template-columns:1fr}.room-head{grid-template-columns:1fr 1fr}.phase{grid-column:1/-1;text-align:center;margin-top:8px}.public{grid-column:auto}.house{min-height:295px}.d6{width:86px;height:86px;font-size:61px}.house-dice{gap:15px;margin:17px 0 12px}.house-total{font-size:48px}.court-numbers{grid-template-columns:repeat(3,1fr)}.players{grid-template-columns:1fr}.player{min-height:80px}.legend{grid-template-columns:1fr}.row button{flex:1 1 auto}.room-code{font-size:22px}.pot strong{font-size:25px}
+}
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+<header>
+  <div class="logo">Suitor</div>
+  <div class="tagline">Court your fortune<strong>Seven judges everyone.</strong></div>
+  <div class="connection" id="connLabel">Not connected</div>
+</header>
+
+<section class="card" id="configCard">
+  <h2>Connect to Tavern Games</h2>
+  <div class="grid">
+    <div><label>Supabase Project URL</label><input id="urlInput" placeholder="https://your-project.supabase.co"></div>
+    <div><label>Supabase Publishable Key</label><input id="keyInput" placeholder="sb_publishable_..."></div>
+  </div>
+  <div class="row"><button class="primary" id="connectBtn">Connect</button></div>
+  <p class="note">Use the same Supabase project and public key as Ships & Fleets. Suitor uses its own su_ tables and functions.</p>
+  <div class="status" id="connectStatus">Enter your connection information.</div>
+</section>
+
+<section class="card hidden" id="entryCard">
+  <h2>Create or Join a Table</h2>
+  <div class="grid three">
+    <div><label>Your Name</label><input id="nameInput" value="Griffin" maxlength="24"></div>
+    <div><label>Your Buy-in</label><input id="buyInInput" type="number" min="1" step="1" value="5"></div>
+    <div><label>Room Code</label><input id="joinCodeInput" maxlength="6" placeholder="ABC123"></div>
+  </div>
+  <div class="row">
+    <button class="primary" id="createBtn">Create Game</button>
+    <button id="joinBtn">Join Game</button>
+  </div>
+  <p class="note"><strong>Joining is Step 1:</strong> choose your own buy-in. When the host starts the game, every player buy-in enters the pot and the house matches their combined total. <strong>After that, each player will choose one mandatory Courted Number and wager before the first house roll.</strong></p>
+</section>
+
+<div class="hidden" id="game">
+  <div class="room-head">
+    <div><div class="note">ROOM</div><div class="room-code" id="roomCode">------</div></div>
+    <div class="pot">Pot<strong id="pot">0</strong></div>
+    <div class="phase" id="phase">Lobby<small id="roundText">Round 0</small></div>
+  </div>
+
+  <div class="row" id="normalControls" style="margin:0 0 14px">
+    <button id="inviteBtn">Copy Player Invite</button>
+    <button id="tableBtn">Open Screen-Share Table</button>
+    <button class="primary hidden" id="startBtn">Start Game</button>
+  </div>
+
+  <div class="game-grid">
+    <section class="card house" id="houseCard">
+      <div class="eyebrow">The House</div>
+      <div class="house-title">Two dice decide the court.</div>
+      <div class="house-dice"><div class="d6" id="houseDie1">—</div><div class="d6" id="houseDie2">—</div></div>
+      <div class="house-total" id="houseTotal">—</div>
+      <div class="house-banner" id="houseBanner"></div>
+      <div class="house-message" id="houseMessage">Waiting for the game to begin.</div>
+      <div class="house-controls" id="houseControls"></div>
+    </section>
+
+    <section class="card private" id="privatePanel">
+      <div class="eyebrow">Your Position</div>
+      <h2 id="privateName">Your Seat</h2>
+      <div id="privateBody"><div class="waiting">Waiting for a table.</div></div>
+    </section>
+
+    <section class="card public">
+      <div class="eyebrow">Public Table</div>
+      <h2 id="publicTitle">Waiting for players</h2>
+      <div class="players" id="players"></div>
+      <div class="legend">
+        <div><strong>Otherwise</strong>Lower: your Court wager enters the pot · Equal: may walk · Higher: house pays your Court wager</div>
+        <div><strong>Doubles</strong>Lower: your Court wager enters the pot · Equal: house pays 4× your Court wager · Higher: house pays your Court wager</div>
+        <div><strong>Seven</strong>1–6 rejected · 7 Perfect Match · 8–12 safe</div>
+        <div><strong>Court Commitment</strong>Choose once; your number and wager stay automatically until that number or Seven is rolled. There is no separate Ready step.</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="finished hidden" id="finishedBox">
+    <div class="big" id="finishedTitle"></div>
+    <div class="sub" id="finishedSub"></div>
+  </section>
+</div>
+</div>
+<div class="roll-overlay" id="rollOverlay" aria-hidden="true">
+  <div class="roll-overlay-inner">
+    <div class="roll-overlay-name" id="rollOverlayName">Your d12</div>
+    <div class="d12" id="rollOverlayDie">?</div>
+    <div class="roll-overlay-result" id="rollOverlayResult"></div>
+  </div>
+</div>
+
+<script>
+const D6=['','⚀','⚁','⚂','⚃','⚄','⚅'];
+const COURT_ODDS={4:'6:1',5:'3:1',6:'1:1',8:'1:1',9:'3:1',10:'6:1'};
+const state={
+  db:null,user:null,room:null,players:[],me:null,channel:null,tableMode:false,
+  seenHouseSeq:null,seenRollSeq:new Map(),houseAnimating:false,houseVisual:null,
+  rollVisual:new Map(),courtDraftNumber:null,courtDraftBet:0,courtDraftDirty:false,
+  localRollAnimating:false,localRollPlayerId:null,busy:false
+};
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function num(v){return Number(v||0)}
+function fmt(v){const n=num(v);return n.toLocaleString(undefined,{maximumFractionDigits:4})}
+function signed(v){const n=num(v);return (n>0?'+':'')+fmt(n)}
+function params(){return new URLSearchParams(location.hash.replace(/^#/,''))}
+function phaseLabel(p){return ({lobby:'Lobby',betting:'Court Wagers',player_rolls:'Player Rolls',walk_choices:'Walk Away?',final_courtship:'Final Courtship',finished:'Finished'})[p]||p}
+function activePlayers(){return state.players.filter(p=>p.status==='active')}
+function isHost(){return !!(state.room&&state.user&&state.room.host_user_id===state.user.id)}
+function currentRoll(p){return state.rollVisual.has(p.id)?state.rollVisual.get(p.id):(p.final_roll??p.round_roll)}
+function resultLabel(p){
+  if(p.final_roll!=null){if(p.final_roll<=6)return 'Rejected';if(p.final_roll===7)return 'Perfect Match';return 'Takes Pot'}
+  const r=p.round_result;
+  if(!r)return '';
+  return ({lower:'Paid Pot',higher:'House Paid',equal:'Equal',equal_double:'Exact Double',rejected:'Rejected',perfect:'Perfect Match',safe:'Safe'})[r]||r;
+}
+function outcomeGuideHtml(){
+  const r=state.room;if(!r)return '';
+  if(r.phase==='final_courtship')return '<div class="outcome-guide"><strong>1–6:</strong> house takes the pot · <strong>7:</strong> Perfect Match, doubled pot · <strong>8–12:</strong> take the pot</div>';
+  const h=num(r.house_total),w=num(state.me?.court_bet);
+  if(r.house_kind==='seven')return '<div class="outcome-guide"><strong>1–6:</strong> eliminated · <strong>7:</strong> Perfect Match, house matches the pot · <strong>8–12:</strong> safe</div>';
+  if(r.house_kind==='doubles')return `<div class="outcome-guide"><strong>Below ${h}:</strong> pay your ${fmt(w)}-digit Court wager into the pot · <strong>Exactly ${h}:</strong> house pays ${fmt(w*4)} · <strong>Above ${h}:</strong> house pays ${fmt(w)}</div>`;
+  return `<div class="outcome-guide"><strong>Below ${h}:</strong> pay your ${fmt(w)}-digit Court wager into the pot · <strong>Exactly ${h}:</strong> may walk away · <strong>Above ${h}:</strong> house pays ${fmt(w)}</div>`;
+}
+function settlementText(p){const n=num(p?.net);if(n>0)return `ADD ${fmt(n)} DIGIT${Math.abs(n)===1?'':'S'} TO PERSONAL SUPPLY`;if(n<0)return `SUBTRACT ${fmt(Math.abs(n))} DIGIT${Math.abs(n)===1?'':'S'} FROM PERSONAL SUPPLY`;return 'NO CHANGE TO PERSONAL SUPPLY'}
+function settlementHtml(p){const n=num(p?.net),cls=n<0?' negative':n===0?' zero':'';return `<div class="settlement${cls}">${esc(settlementText(p))}</div>`}
+
+async function connect(){
+  try{
+    const url=$('urlInput').value.trim(),key=$('keyInput').value.trim();
+    if(!url||!key)throw new Error('Enter both Supabase values.');
+    localStorage.setItem('tg_supabase_url',url);localStorage.setItem('tg_supabase_key',key);
+    state.db=supabase.createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+    const {data:s,error:e}=await state.db.auth.getSession();if(e)throw e;
+    if(s.session)state.user=s.session.user;else{const {data,error}=await state.db.auth.signInAnonymously();if(error)throw error;state.user=data.user}
+    $('connLabel').textContent='Connected · '+state.user.id.slice(0,6);
+    $('connectStatus').textContent='Connected.';$('connectStatus').className='status good';$('configCard').classList.add('hidden');
+    const h=params();state.tableMode=h.get('mode')==='table';if(state.tableMode)$('shell').classList.add('table-only');
+    const code=(h.get('room')||'').toUpperCase();
+    if(state.tableMode&&code)await loadRoomByCode(code);else{$('entryCard').classList.remove('hidden');if(code)$('joinCodeInput').value=code}
+  }catch(e){$('connectStatus').textContent=e.message||e;$('connectStatus').className='status bad'}
+}
+async function createRoom(){
+  try{
+    saveName();
+    const buyIn=num($('buyInInput').value);if(buyIn<=0)throw new Error('Buy-in must be greater than zero.');const {data,error}=await state.db.rpc('su_create_room',{p_display_name:$('nameInput').value.trim(),p_buy_in:buyIn});if(error)throw error;
+    await loadRoom(data[0].room_id);
+  }catch(e){alert(e.message||e)}
+}
+async function joinRoom(){
+  try{
+    saveName();
+    const buyIn=num($('buyInInput').value);if(buyIn<=0)throw new Error('Buy-in must be greater than zero.');const {data,error}=await state.db.rpc('su_join_room',{p_room_code:$('joinCodeInput').value.trim().toUpperCase(),p_display_name:$('nameInput').value.trim(),p_buy_in:buyIn});if(error)throw error;
+    await loadRoom(data[0].room_id);
+  }catch(e){alert(e.message||e)}
+}
+function saveName(){localStorage.setItem('tg_player_name',$('nameInput').value.trim())}
+async function loadRoomByCode(code){
+  const {data,error}=await state.db.from('su_rooms').select('*').eq('code',code).maybeSingle();if(error)throw error;if(!data)throw new Error('Suitor room not found.');await loadRoom(data.id)
+}
+async function loadRoom(id){$('entryCard').classList.add('hidden');$('game').classList.remove('hidden');state.room={id};await refreshAll(true);subscribe()}
+function subscribe(){
+  if(state.channel)state.db.removeChannel(state.channel);
+  state.channel=state.db.channel('suitor-'+state.room.id)
+    .on('postgres_changes',{event:'*',schema:'public',table:'su_players',filter:`room_id=eq.${state.room.id}`},()=>refreshAll(false))
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'su_rooms',filter:`id=eq.${state.room.id}`},()=>refreshAll(false))
+    .subscribe();
+}
+async function refreshAll(initial=false){
+  if(!state.room?.id)return;
+  const oldRoom=state.room?.house_roll_seq!==undefined?{...state.room}:null;
+  const oldPlayers=new Map(state.players.map(p=>[p.id,{...p}]));
+  const [{data:r,error:re},{data:p,error:pe}]=await Promise.all([
+    state.db.from('su_rooms').select('*').eq('id',state.room.id).single(),
+    state.db.from('su_players').select('*').eq('room_id',state.room.id).order('seat')
+  ]);if(re)throw re;if(pe)throw pe;
+  state.room=r;state.players=p;state.me=p.find(x=>x.user_id===state.user.id)||null;
+  if(initial){state.seenHouseSeq=r.house_roll_seq;state.seenRollSeq=new Map(p.map(x=>[x.id,x.roll_seq]));syncCourtDraft(true)}
+  else if(r.phase!=='betting')state.courtDraftDirty=false;
+  if(r.phase==='betting'&&!state.courtDraftDirty)syncCourtDraft(false);
+  render();
+  if(!initial)handleAnimations(oldRoom,oldPlayers);
+}
+function syncCourtDraft(force=false){if(!state.me)return;if(force||!state.courtDraftDirty){state.courtDraftNumber=state.me.court_number;state.courtDraftBet=num(state.me.court_bet)>0?num(state.me.court_bet):1}}
+function handleAnimations(oldRoom,oldPlayers){
+  if(state.seenHouseSeq===null||state.room.house_roll_seq<state.seenHouseSeq)state.seenHouseSeq=state.room.house_roll_seq;
+  if(state.room.house_roll_seq>state.seenHouseSeq){state.seenHouseSeq=state.room.house_roll_seq;animateHouse(state.room.house_die_1,state.room.house_die_2)}
+  for(const p of state.players){const seen=state.seenRollSeq.get(p.id);if(seen===undefined||p.roll_seq<seen){state.seenRollSeq.set(p.id,p.roll_seq);continue}if(p.roll_seq>seen){state.seenRollSeq.set(p.id,p.roll_seq);if(!(state.localRollAnimating&&state.localRollPlayerId===p.id))animatePlayerRoll(p)}}
+}
+
+function render(){renderHeader();renderHouse();renderPlayers();if(!state.tableMode)renderPrivate();renderFinished()}
+function renderHeader(){
+  const r=state.room;$('roomCode').textContent=r.code;$('pot').textContent=fmt(r.pot);$('phase').firstChild.textContent=phaseLabel(r.phase);$('roundText').textContent=`Round ${r.round_number}`;
+  const canStart=isHost()&&['lobby','finished'].includes(r.phase)&&state.players.length>=2;
+  $('startBtn').classList.toggle('hidden',!canStart);$('startBtn').textContent=r.phase==='finished'?'Start New Game':'Start Game';
+  $('publicTitle').textContent=r.phase==='lobby'?`${state.players.length} suitor${state.players.length===1?'':'s'} seated`:r.message;
+}
+function renderHouse(){
+  const r=state.room,vis=state.houseVisual;
+  if(!state.houseAnimating){$('houseDie1').classList.remove('lock');$('houseDie2').classList.remove('lock')}
+  const d1=vis?vis[0]:r.house_die_1,d2=vis?vis[1]:r.house_die_2;
+  $('houseDie1').textContent=d1?D6[d1]:'—';$('houseDie2').textContent=d2?D6[d2]:'—';
+  if(state.houseAnimating){$('houseTotal').textContent='…';$('houseBanner').textContent='THE HOUSE IS ROLLING';$('houseBanner').className='house-banner';$('houseMessage').textContent='The dice are still in motion.'}
+  else{
+    $('houseTotal').textContent=r.house_total??'—';
+    const b=$('houseBanner');b.className='house-banner';
+    if(r.phase==='lobby'||r.house_total==null)b.textContent='';
+    else if(r.house_kind==='seven'){b.textContent='SEVEN';b.classList.add('seven')}
+    else if(r.house_kind==='doubles'){b.textContent='DOUBLES';b.classList.add('doubles')}
+    else b.textContent=`HOUSE ${r.house_total}`;
+    $('houseMessage').textContent=r.message;
+  }
+  const hc=$('houseControls');hc.innerHTML='';
+  if(r.phase==='betting'){
+    const alive=activePlayers(),committed=alive.filter(p=>p.court_number&&num(p.court_bet)>0).length;
+    const count=document.createElement('div');count.className='ready-count';count.textContent=`${committed} of ${alive.length} active suitors have a Court committed`;hc.appendChild(count);
+    const help=document.createElement('div');help.className='ready-count';help.textContent=committed===alive.length&&alive.length?'Everyone has a Court. The host may roll the house.':'The house waits only for players who still need to choose a Court.';hc.appendChild(help);
+    if(isHost()&&!state.tableMode){const b=document.createElement('button');b.className='primary';b.textContent='ROLL THE HOUSE';b.disabled=committed!==alive.length||!alive.length||state.busy;b.onclick=rollHouse;hc.appendChild(b)}
+  } else if(r.phase==='player_rolls'){
+    const left=activePlayers().filter(p=>p.round_roll==null).length;const x=document.createElement('div');x.className='ready-count';x.textContent=`Waiting on ${left} d12 roll${left===1?'':'s'}`;hc.appendChild(x)
+  } else if(r.phase==='walk_choices'){
+    const eq=activePlayers().filter(p=>p.round_result==='equal');const left=eq.filter(p=>!p.walk_choice).length;const x=document.createElement('div');x.className='ready-count';x.textContent=`${eq.length-left} of ${eq.length} walk-away choices locked`;hc.appendChild(x)
+  } else if(r.phase==='final_courtship'){
+    const fp=state.players.find(p=>p.id===r.final_player_id);const x=document.createElement('div');x.className='ready-count';x.textContent=fp?`${fp.display_name} faces Final Courtship.`:'Final Courtship';hc.appendChild(x)
+  }
+}
+function renderPlayers(){
+  const box=$('players');box.innerHTML='';
+  for(const p of state.players){
+    const card=document.createElement('div');card.className='player'+(state.me?.id===p.id?' me':'')+(p.status!=='active'?' out':'')+(p.status==='winner'?' winner':'');
+    const roll=currentRoll(p);let meta=[];
+    if(state.room.phase==='lobby')meta.push(`<span class="court">Buy-in ${fmt(p.buy_in)}</span>`);
+    if(p.court_number&&num(p.court_bet)>0)meta.push(`<span class="court">Court ${p.court_number} · ${fmt(p.court_bet)}</span>`);
+    if(num(p.court_last_delta)>0)meta.push(`<span class="gain">Court ${signed(p.court_last_delta)}</span>`);
+    if(num(p.court_last_delta)<0)meta.push(`<span class="loss">Court ${signed(p.court_last_delta)}</span>`);
+    const badges=[];if(state.room.host_user_id===p.user_id)badges.push('<span class="badge host">Host</span>');if(state.room.phase==='walk_choices'&&p.round_result==='equal'&&p.walk_choice)badges.push('<span class="badge decision">Decision Locked</span>');
+    const settled=p.status!=='active'||state.room.phase==='finished';
+    card.innerHTML=`<div class="seat">${p.seat}</div><div><div class="player-name">${esc(p.display_name)}</div><div class="player-meta">${esc(statusText(p))}${meta.length?' · '+meta.join(' · '):''}</div><div class="badges">${badges.join('')}</div>${settled?settlementHtml(p):''}</div><div class="player-right"><div class="net ${num(p.net)<0?'neg':''}">${signed(p.net)}</div><div class="mini-roll" data-roll-id="${p.id}">${roll??'—'}</div><div class="mini-result">${esc(resultLabel(p))}</div></div>`;
+    box.appendChild(card);
+  }
+}
+function statusText(p){
+  if(p.status==='walked')return 'Walked away';if(p.status==='eliminated')return 'Eliminated';if(p.status==='winner')return 'Winner';if(p.status==='survived')return 'Survived the Seven';
+  if(state.room.phase==='betting')return p.court_number&&num(p.court_bet)>0?'Court committed · waiting for house':'Choosing mandatory Court';
+  if(state.room.phase==='player_rolls')return p.round_roll==null?'Awaiting d12':'Rolled';
+  if(state.room.phase==='walk_choices'&&p.round_result==='equal')return p.walk_choice?'Decision locked':'Must choose';
+  if(state.room.phase==='final_courtship'&&p.id===state.room.final_player_id)return 'Final Suitor';return 'Active';
+}
+function renderPrivate(){
+  const body=$('privateBody'),me=state.me,r=state.room;$('privateName').textContent=me?me.display_name:'Your Seat';
+  if(!me){body.innerHTML='<div class="waiting">You are watching this room but are not seated.</div>';return}
+  if(r.phase==='lobby'){const total=state.players.reduce((s,p)=>s+num(p.buy_in),0);body.innerHTML=`<div class="court-summary">Your buy-in: <strong>${fmt(me.buy_in)}</strong></div><div class="step-guide"><div class="step-title">What happens next</div><strong>1.</strong> Wait for the host to start. The players have committed ${fmt(total)} digits, and the house will add another ${fmt(total)}.<br><strong>2.</strong> You will choose a Courted Number and wager. That wager becomes your personal stake.<br><strong>3.</strong> Once you commit it, you are done until the house rolls—there is no separate Ready button.</div>`;return}
+  if(r.phase==='finished'){body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div>${settlementHtml(me)}<div class="waiting">Final result for this game. This total includes your buy-in and every payment or payout.</div>`;return}
+  if(me.status!=='active'){
+    body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div>${settlementHtml(me)}<div class="waiting">${me.status==='walked'?'You walked away and locked this result.':'You are out of the running.'}<br>You can still watch the table.</div>`;return
+  }
+  if(r.phase==='betting')renderCourt(body,me);
+  else if(r.phase==='player_rolls')renderPlayerRoll(body,me);
+  else if(r.phase==='walk_choices')renderWalk(body,me);
+  else if(r.phase==='final_courtship')renderFinal(body,me);
+  else body.innerHTML='<div class="waiting">Waiting for the table.</div>';
+}
+function renderCourt(body,me){
+  const hasLockedCourt=me.court_number&&num(me.court_bet)>0;
+  if(hasLockedCourt){
+    body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div><div class="court-summary">Courting <strong>${me.court_number}</strong> for <strong>${fmt(me.court_bet)}</strong></div><div class="step-guide"><div class="step-title">Your step is complete</div>Your Court is already committed. <strong>You do not need to ready, confirm, or press anything else.</strong><br><br>Wait for the house roll. This same Court and wager carry forward automatically every round until <strong>${me.court_number}</strong> or Seven is rolled. If either happens, the game will ask you to choose a new Court before a later house roll.</div>`;return
+  }
+  const last=num(me.court_last_delta);const hit=last>0?`<div class="hit-note">Your Courted Number hit last roll: <strong>${signed(last)}</strong>. That Court is complete, so you must choose a new one before the house can roll again.</div>`:last<0?`<div class="hit-note loss-note">Seven resolved your previous Court: <strong>${signed(last)}</strong>. Choose a new mandatory Court before the next house roll.</div>`:'';
+  const valid=state.courtDraftNumber&&num(state.courtDraftBet)>0;
+  body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div>${hit}<div class="step-guide"><div class="step-title">Choose a Court</div><strong>Step 1:</strong> choose 4, 5, 6, 8, 9, or 10.<br><strong>Step 2:</strong> choose how many digits to wager. This exact amount is also your stake when your d12 finishes below or above the house.<br><strong>Step 3:</strong> press <strong>Commit Court</strong>. That is your only confirmation—there is no separate Ready step.</div><div class="court-panel"><div class="eyebrow">Choose Your Mandatory Court</div><div class="court-numbers">${[4,5,6,8,9,10].map(n=>`<button class="court-num ${state.courtDraftNumber===n?'selected':''}" data-court="${n}"><strong>${n}</strong><small>${COURT_ODDS[n]}</small></button>`).join('')}</div><label>Court wager · also your personal roll stake</label><input id="courtBetInput" type="number" min="1" step="1" value="${state.courtDraftBet}"><div class="row"><button class="primary" id="commitCourtBtn" ${valid?'':'disabled'}>Commit Court</button></div><div class="note" style="margin-top:9px">Commit carefully: neither the number nor wager can change until that Courted Number or Seven is rolled. 6/8 pay 1:1 · 5/9 pay 3:1 · 4/10 pay 6:1.</div></div>`;
+  body.querySelectorAll('[data-court]').forEach(b=>b.onclick=()=>{state.courtDraftNumber=Number(b.dataset.court);state.courtDraftDirty=true;state.courtDraftBet=Math.max(1,num($('courtBetInput').value));renderPrivate()});
+  $('courtBetInput').oninput=()=>{state.courtDraftBet=num($('courtBetInput').value);state.courtDraftDirty=true;$('commitCourtBtn').disabled=!(state.courtDraftNumber&&state.courtDraftBet>0)};
+  $('commitCourtBtn').onclick=saveCourt;
+}
+function renderPlayerRoll(body,me){
+  const roll=currentRoll(me),r=state.room;
+  const reminder=r.house_kind==='seven'
+    ? '<div class="step-guide"><div class="step-title">Now it is your turn</div>Seven already resolved your Court. Roll your d12: <strong>1–6 eliminates you, 7 is a Perfect Match, and 8–12 keeps you safe.</strong></div>'
+    : `<div class="step-guide"><div class="step-title">Now it is your turn</div>Roll your d12 and compare it with the house total of <strong>${fmt(r.house_total)}</strong>. Your committed Court wager of <strong>${fmt(me.court_bet)}</strong> is the amount that moves when you finish below or above the house.${r.house_kind==='doubles'?' An exact match on Doubles pays four times your wager.':' An exact match on a normal roll opens the walk-away choice.'}</div>`;
+  body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div>${reminder}<div class="d12-stage"><div class="eyebrow">Your d12</div><div class="d12" id="myD12">${roll??'?'}</div><div class="roll-result">${esc(resultLabel(me))}</div>${outcomeGuideHtml()}${me.round_roll==null?'<button class="primary" id="rollPlayerBtn">ROLL d12</button>':'<div class="waiting">Your d12 is finished. No more action is needed from you until the table advances.</div>'}</div>`;if($('rollPlayerBtn'))$('rollPlayerBtn').onclick=rollPlayer;
+}
+function renderWalk(body,me){
+  if(me.round_result!=='equal'){body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div><div class="step-guide"><div class="step-title">Nothing to choose</div>Another suitor matched the house and has a private walk-away decision. <strong>You do not need to do anything.</strong> The round continues after every matching suitor decides.</div>`;return}
+  if(me.walk_choice){body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div><div class="walk-box"><h3>Decision Locked</h3><p>Your choice remains hidden until everyone with an Equal has decided.</p></div>`;return}
+  body.innerHTML=`<div class="net-big ${num(me.net)<0?'negative':''}">${signed(me.net)}</div><div class="step-guide"><div class="step-title">Decision required</div>You matched the house on a normal roll. Choose <strong>Walk Away</strong> to leave now with your current result, or <strong>Stay In</strong> to remain eligible for the pot. Your choice is hidden until all matching suitors decide.</div><div class="walk-box"><h3>The Door Is Open</h3><p>Choose whether to leave or continue courting.</p><div class="row" style="justify-content:center"><button class="primary" id="walkBtn">Walk Away</button><button class="rose" id="stayBtn">Stay In</button></div></div>`;$('walkBtn').onclick=()=>walkChoice(true);$('stayBtn').onclick=()=>walkChoice(false);
+}
+function renderFinal(body,me){
+  if(me.id!==state.room.final_player_id){body.innerHTML='<div class="waiting">Only the Final Suitor may roll.</div>';return}
+  const roll=currentRoll(me);body.innerHTML=`<div class="step-guide"><div class="step-title">Final step</div>You are the last active suitor. Your Court no longer matters. <strong>Make one final d12 roll:</strong> 1–6 loses the pot, 7 wins the doubled pot, and 8–12 wins the pot.</div><div class="final-box"><div class="eyebrow">Final Courtship</div><div class="big">One roll. No house dice.</div><div class="d12" id="myD12">${roll??'?'}</div>${outcomeGuideHtml()}<div class="row" style="justify-content:center;margin-top:17px">${me.final_roll==null?'<button class="primary" id="finalRollBtn">FACE FINAL COURTSHIP</button>':''}</div></div>`;if($('finalRollBtn'))$('finalRollBtn').onclick=finalRoll;
+}
+function renderFinished(){
+  const box=$('finishedBox');if(state.room.phase!=='finished'){box.classList.add('hidden');return}box.classList.remove('hidden');const winners=state.players.filter(p=>p.status==='winner');
+  if(winners.length){$('finishedTitle').textContent=winners.length===1?`${winners[0].display_name} WINS`:'PERFECT MATCHES';$('finishedSub').textContent=winners.length===1?`${winners[0].display_name} finishes at ${signed(winners[0].net)}. Payout from the pot: ${fmt(state.room.final_payout)}.`:`${winners.map(w=>w.display_name).join(', ')} divide ${fmt(state.room.final_payout)}. Each player's net is shown above.`}
+  else{$('finishedTitle').textContent='THE HOUSE WINS';$('finishedSub').textContent='No suitor claimed the pot. Final player results remain on the table.'}
+}
+
+async function startGame(){await rpcBusy('su_start_game',{p_room_id:state.room.id})}
+async function saveCourt(){
+  try{state.busy=true;const bet=num(state.courtDraftBet);if(!state.courtDraftNumber)throw new Error('Choose a Courted Number first.');if(bet<=0)throw new Error('A Court wager is required.');const {error}=await state.db.rpc('su_set_court',{p_room_id:state.room.id,p_number:state.courtDraftNumber,p_bet:bet});if(error)throw error;state.courtDraftDirty=false;await refreshAll(false)}catch(e){alert(e.message||e)}finally{state.busy=false;render()}
+}
+async function rollHouse(){await rpcBusy('su_house_roll',{p_room_id:state.room.id})}
+async function rollPlayer(){
+  if(state.busy||state.localRollAnimating)return;
+  try{state.busy=true;state.localRollAnimating=true;state.localRollPlayerId=state.me?.id||null;prepareRollOverlay(false);render();
+    const {data,error}=await state.db.rpc('su_player_roll',{p_room_id:state.room.id});if(error)throw error;
+    const result=Array.isArray(data)?data[0]:data;if(result?.roll!=null)await animateOwnRoll(Number(result.roll),result.result||'');
+    await refreshAll(false);
+  }catch(e){alert(e.message||e)}finally{state.localRollAnimating=false;state.localRollPlayerId=null;state.busy=false;hideRollOverlay();render()}
+}
+async function walkChoice(walk){await rpcBusy('su_walk_choice',{p_room_id:state.room.id,p_walk:!!walk})}
+async function finalRoll(){
+  if(state.busy||state.localRollAnimating)return;
+  try{state.busy=true;state.localRollAnimating=true;state.localRollPlayerId=state.me?.id||null;prepareRollOverlay(true);render();
+    const {data,error}=await state.db.rpc('su_final_roll',{p_room_id:state.room.id});if(error)throw error;
+    const result=Array.isArray(data)?data[0]:data;if(result?.roll!=null)await animateOwnRoll(Number(result.roll),result.result||'',true);
+    await refreshAll(false);
+  }catch(e){alert(e.message||e)}finally{state.localRollAnimating=false;state.localRollPlayerId=null;state.busy=false;hideRollOverlay();render()}
+}
+async function rpcBusy(name,args){if(state.busy)return;try{state.busy=true;render();const {error}=await state.db.rpc(name,args);if(error)throw error;await refreshAll(false)}catch(e){alert(e.message||e)}finally{state.busy=false;render()}}
+
+async function animateHouse(d1,d2){
+  $('houseDie1').classList.remove('lock');$('houseDie2').classList.remove('lock');
+  state.houseAnimating=true;state.houseVisual=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];renderHouse();
+  const frames=[55,60,70,85,105,130,165,210];
+  for(const delay of frames){state.houseVisual=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];renderHouse();await sleep(delay)}
+  state.houseVisual=[d1,1+Math.floor(Math.random()*6)];renderHouse();$('houseDie1').classList.add('lock');await sleep(340);
+  for(const delay of [90,130,190]){state.houseVisual=[d1,1+Math.floor(Math.random()*6)];renderHouse();$('houseDie1').classList.add('lock');await sleep(delay)}
+  state.houseVisual=[d1,d2];renderHouse();$('houseDie1').classList.add('lock');$('houseDie2').classList.add('lock');await sleep(430);
+  state.houseAnimating=false;state.houseVisual=null;renderHouse();
+  const card=$('houseCard');if(state.room.house_kind==='seven'){card.classList.remove('flash-seven');void card.offsetWidth;card.classList.add('flash-seven')}else if(state.room.house_kind==='doubles'){card.classList.remove('flash-double');void card.offsetWidth;card.classList.add('flash-double')}
+}
+function prepareRollOverlay(finalMode=false){const o=$('rollOverlay'),d=$('rollOverlayDie'),l=$('rollOverlayResult'),n=$('rollOverlayName');if(!o)return;n.textContent=finalMode?'FINAL COURTSHIP · YOUR d12':'YOUR d12';d.textContent='?';d.classList.remove('impact');l.textContent='';o.classList.add('show');o.setAttribute('aria-hidden','false')}
+function hideRollOverlay(){const o=$('rollOverlay');if(o){o.classList.remove('show');o.setAttribute('aria-hidden','true')}}
+function localResultLabel(result,finalMode=false,roll=null){
+  if(finalMode&&roll!=null){if(roll<=6)return 'Rejected';if(roll===7)return 'Perfect Match';return 'Takes Pot'}
+  return ({lower:'Paid Pot',higher:'House Paid',equal:'Equal',equal_double:'Exact Double',rejected:'Rejected',perfect:'Perfect Match',safe:'Safe'})[result]||'';
+}
+async function animateOwnRoll(final,result='',finalMode=false){
+  const overlay=$('rollOverlay'),die=$('rollOverlayDie'),label=$('rollOverlayResult'),name=$('rollOverlayName');
+  name.textContent=finalMode?'FINAL COURTSHIP · YOUR d12':'YOUR d12';label.textContent='';die.classList.remove('impact');overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');
+  const frames=[45,50,60,70,85,105,135,175];
+  for(const delay of frames){die.textContent=1+Math.floor(Math.random()*12);await sleep(delay)}
+  die.textContent=final;die.classList.add('impact');label.textContent=localResultLabel(result,finalMode,final);await sleep(700);
+  overlay.classList.remove('show');overlay.setAttribute('aria-hidden','true');await sleep(160);
+}
+async function animatePlayerRoll(p){
+  const final=p.final_roll??p.round_roll;if(final==null)return;const frames=[45,50,60,70,85,105,135,175];
+  for(const delay of frames){state.rollVisual.set(p.id,1+Math.floor(Math.random()*12));renderPlayers();if(state.me?.id===p.id&&!state.tableMode&&$('myD12')){$('myD12').textContent=state.rollVisual.get(p.id)}await sleep(delay)}
+  state.rollVisual.set(p.id,final);renderPlayers();if(state.me?.id===p.id&&!state.tableMode&&$('myD12')){$('myD12').textContent=final;$('myD12').classList.add('impact')}await sleep(520);state.rollVisual.delete(p.id);renderPlayers();if(!state.tableMode)renderPrivate();
+}
+function makeInvite(){const url=localStorage.getItem('tg_supabase_url')||'',key=localStorage.getItem('tg_supabase_key')||'',base=location.href.split('#')[0];return `${base}#room=${encodeURIComponent(state.room.code)}&u=${encodeURIComponent(url)}&k=${encodeURIComponent(key)}`}
+async function copyInvite(){const link=makeInvite();try{await navigator.clipboard.writeText(link);const b=$('inviteBtn'),old=b.textContent;b.textContent='Invite Copied';setTimeout(()=>b.textContent=old,1200)}catch{prompt('Copy this player invite:',link)}}
+function openTable(){const base=location.href.split('#')[0],url=localStorage.getItem('tg_supabase_url')||'',key=localStorage.getItem('tg_supabase_key')||'';window.open(`${base}#mode=table&room=${encodeURIComponent(state.room.code)}&u=${encodeURIComponent(url)}&k=${encodeURIComponent(key)}`,'_blank')}
+
+$('connectBtn').onclick=connect;$('createBtn').onclick=createRoom;$('joinBtn').onclick=joinRoom;$('startBtn').onclick=startGame;$('inviteBtn').onclick=copyInvite;$('tableBtn').onclick=openTable;
+window.addEventListener('load',()=>{
+  const h=params(),hu=h.get('u'),hk=h.get('k');if(hu&&hk){localStorage.setItem('tg_supabase_url',hu);localStorage.setItem('tg_supabase_key',hk)}
+  const oldUrl=localStorage.getItem('sf_supabase_url'),oldKey=localStorage.getItem('sf_supabase_key');
+  const u=localStorage.getItem('tg_supabase_url')||oldUrl||'',k=localStorage.getItem('tg_supabase_key')||oldKey||'';if(u)$('urlInput').value=u;if(k)$('keyInput').value=k;
+  const nm=localStorage.getItem('tg_player_name');if(nm)$('nameInput').value=nm;if(h.get('room'))$('joinCodeInput').value=h.get('room').toUpperCase();if(u&&k)connect();
+});
+</script>
+</body>
+</html>
